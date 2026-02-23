@@ -1,0 +1,118 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== ENUMS ====================
+
+enum LoginStatus {
+  SUCCESS
+  FAILED
+  BLOCKED
+}
+
+// ==================== MODELS ====================
+
+model User {
+  id                String           @id @default(uuid())
+  
+  // Аутентификация
+  email             String           @unique @db.VarChar(255)
+  username          String           @unique @db.VarChar(50)
+  password          String           @db.VarChar(255) // bcrypt hash
+  
+  // Профиль (опционально)
+  firstName         String?          @db.VarChar(100)
+  lastName          String?          @db.VarChar(100)
+  avatar            String?          @db.VarChar(500) // URL
+  phone             String?          @unique @db.VarChar(20)
+  
+  // Статусы
+  isActive          Boolean          @default(true)
+  isEmailVerified   Boolean          @default(false)
+  
+  // Безопасность (Brute-force защита)
+  failedLoginAttempts Int            @default(0)
+  lockedUntil       DateTime?
+  
+  // Аудит
+  lastLogin         DateTime?
+  
+  // Связи
+  sessions          Session[]
+  loginHistory      LoginHistory[]
+  
+  // Timestamps
+  createdAt         DateTime         @default(now()) @map("created_at")
+  updatedAt         DateTime         @updatedAt @map("updated_at")
+  deletedAt         DateTime?        @map("deleted_at") // Soft delete
+  
+  // Индексы
+  @@index([email])
+  @@index([username])
+  @@index([isActive])
+  @@index([deletedAt])
+  
+  @@map("users")
+}
+
+model Session {
+  id                    String    @id @default(uuid())
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Refresh Token (хэш)
+  refreshToken          String    @unique @db.VarChar(500)
+  refreshTokenExpiresAt DateTime
+  
+  // Метаданные
+  userAgent             String?   @db.VarChar(500)
+  ipAddress             String?   @db.VarChar(45) // IPv6
+  deviceName            String?   @db.VarChar(100)
+  
+  // Управление сессией
+  expiresAt             DateTime
+  revokedAt             DateTime? // Для logout all
+  
+  createdAt             DateTime  @default(now()) @map("created_at")
+  
+  // Индексы
+  @@index([userId])
+  @@index([refreshToken])
+  @@index([expiresAt])
+  @@index([revokedAt])
+  
+  @@map("sessions")
+}
+
+model LoginHistory {
+  id            String      @id @default(uuid())
+  userId        String
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Данные входа
+  ipAddress     String?     @db.VarChar(45)
+  userAgent     String?     @db.VarChar(500)
+  status        LoginStatus
+  failureReason String?     @db.VarChar(255) // "INVALID_PASSWORD", "USER_NOT_FOUND"
+  
+  createdAt     DateTime    @default(now()) @map("created_at")
+  
+  // Индексы
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+  @@index([ipAddress, createdAt])
+  
+  @@map("login_history")
+}
