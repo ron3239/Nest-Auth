@@ -7,6 +7,7 @@ import { AuthModule } from "./auth/auth.module.js";
 import { PrismaModule } from "./prisma/prisma.module.js";
 import { UsersModule } from "./users/users.module.js";
 import { ProfileController } from "./profile/profile.controller.js";
+import { ModelsModule } from "./models/models.module.js";
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { ProfileController } from "./profile/profile.controller.js";
     PrismaModule,
     AuthModule,
     UsersModule,
+    ModelsModule,
   ],
   controllers: [AppController, AuthController, ProfileController],
   providers: [AppService],
